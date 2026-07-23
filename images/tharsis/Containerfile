@@ -1,0 +1,191 @@
+FROM docker.io/library/debian:trixie
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# move dpkg/apt state to /usr/lib to conform to bootc and add bootc repo
+RUN mkdir -p /etc/dpkg/dpkg.cfg.d && \
+    echo "admindir /usr/lib/dpkg" > /etc/dpkg/dpkg.cfg.d/bootc-admindir && \
+    mkdir -p /usr/lib/dpkg && \
+    cp -rp /var/lib/dpkg/* /usr/lib/dpkg/ && rm -rf /var/lib/dpkg && \
+    mkdir -p /etc/apt/apt.conf.d && \
+    echo 'Dir::State::status "/usr/lib/dpkg/status";' > /etc/apt/apt.conf.d/bootc-apt.conf && \
+    rm -Rf /var/lib/dpkg && ln -s /usr/lib/dpkg /var/lib/dpkg && \
+    apt update
+
+RUN apt install -y ca-certificates openssl jq yq curl wget 
+COPY src/etc/. /etc
+COPY src/usr/. /usr
+COPY src/deb/. /tmp
+
+RUN apt update && apt install -y \
+        linux-image-amd64 \
+        linux-headers-amd64 \
+        dkms \
+        firmware-linux-free \
+        firmware-linux \
+        firmware-misc-nonfree \
+        intel-microcode \
+        amd64-microcode \
+        podman \
+        skopeo \
+        adduser \
+        sudo \
+        locales \
+        console-setup \
+        console-data \
+        bash-completion \
+        less \
+        man-db \
+        nano \
+        iproute2 \
+        groff-base \
+        manpages \
+        libnss-systemd \
+        systemd-timesyncd \
+        util-linux-extra \
+        btrfs-progs \
+        file \
+        traceroute \
+        lsof \
+        bzip2 \
+        xz-utils \
+        apt-listchanges \
+        bind9-host \
+        bind9-dnsutils \
+        perl \
+        wtmpdb \
+        media-types \
+        liblockfile-bin \
+        openssh-server \
+        openssh-client \
+        reportbug \
+        debian-faq \
+        krb5-locales \
+        inetutils-telnet \
+        netcat-traditional \
+        doc-debian \
+        dbus \
+        ifupdown2 \
+        dhcpcd \
+        isc-dhcp-client \
+        wpasupplicant \
+        broadcom-sta-dkms \
+        firstboot-user-setup \
+        bubblewrap \
+        dosfstools \
+        e2fsprogs \
+        fdisk \
+        dracut \
+        netplan.io \
+        libnss-resolve \
+        libnss-myhostname \
+        fuse-overlayfs \
+        systemd \
+        systemd-boot* \
+        systemd-resolved \
+        xfsprogs \
+        lvm2 \
+        cryptsetup \
+        mdadm \
+        kbd \
+        kpartx \
+        dmeventd \
+        bootc \
+        bootupd \
+        grub-efi-amd64-signed && \
+    dpkg -i /tmp/*.deb && \
+    apt-mark hold \
+        grub-efi-amd64-signed \
+        bootc \
+        bootupd \
+        libostree-1-1 \
+        libostree-dev && \
+    rm -rf /tmp/*
+    
+RUN apt install -y \
+        kde-standard \
+        libqt5core5a \
+        sddm \
+        flatpak \
+        libcurl4 \
+        network-manager-iwd \
+        firmware-iwlwifi \
+        firmware-realtek \
+        rsync \
+        openssh-client \
+        emacs-nox \
+        vim
+
+COPY src/flatpaks.txt /tmp/flatpaks.txt
+RUN chmod u+s /usr/bin/bwrap && \
+    flatpak remote-add --installation=bootc flathub https://dl.flathub.org/repo/flathub.flatpakrepo && \
+    grep -v "#.*" /tmp/flatpaks.txt | xargs "-i{}" -d "\n" sh -c "flatpak install --installation=bootc --noninteractive -y {}" && \
+    chmod u-s /usr/bin/bwrap
+
+RUN systemctl set-default graphical.target && \
+    systemctl enable sddm
+
+RUN apt autoremove -y && apt clean && rm -rf \
+        /tmp/* \
+        /var/tmp/* \
+        /var/log/* \
+        /var/log/apt/* \
+        /run/* \
+        /usr/sbin/policy-rc.d && \    
+    mkdir -p /var/home \
+        /var/roothome \
+        /var/mnt \
+        /var/srv \
+        /var/opt \
+        /var/usr/lib/locale \
+        /sysroot/ostree \
+    && cp -r /usr/lib/locale/* /var/usr/lib/locale/ | true \
+    && rm -rf /home \
+        /root \
+        /mnt \
+        /srv \
+        /opt \
+        /usr/lib/locale \
+    && ln -s var/home / \
+    && ln -s var/mnt / \
+    && ln -s var/srv / \
+    && ln -s var/opt / \
+    && ln -s var/roothome /root \
+    && ln -s sysroot/ostree /ostree \
+    && ln -s var/lib/locale /usr/lib/locale
+
+COPY --chmod=755 <<EOF /usr/bin/tharsis_install
+#!/bin/bash
+
+if ! mountpoint -q /mnt; then
+    echo "Error: Filesystem must be mounted at /mnt" >&2
+    exit 1
+fi
+
+if [ $(findmnt -bno AVAIL /var/tmp) -le "16106127360" ]; then
+    echo "Error: At least 15G of free storage must be available at /var/tmp" >&2
+    exit 1
+fi
+
+bootc install to-filesystem \
+    --bootloader=grub \
+    --stateroot=default \
+    --source-imgref containers-storage:tharsis:latest \
+    --target-imgref containers-storage:tharsis:latest \
+    --disable-selinux \
+    --skip-fetch-check \
+    /mnt
+EOF
+
+LABEL containers.bootc=1
+LABEL ostree.bootable=1
+LABEL org.opencontainers.image.title="Tharsis"
+LABEL org.opencontainers.image.description="Tharsis bootable bootc/ostree container image, signed with cosign."
+LABEL org.opencontainers.image.base.name="docker.io/library/debian:trixie"
+LABEL org.opencontainers.image.licenses="MIT"
+
+RUN bootc container lint
+
+CMD bootc container lint
+
+# VERSION: 1.0.0

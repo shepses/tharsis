@@ -1,0 +1,15 @@
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source."git+https://github.com/bootc-dev/bcvk?rev=bdf106c74c13a0a1a4b39f9ad0f52b238fe2d318"]
+git = "https://github.com/bootc-dev/bcvk"
+replace-with = "vendored-sources"
+rev = "bdf106c74c13a0a1a4b39f9ad0f52b238fe2d318"
+
+[source."git+https://github.com/composefs/composefs-rs?rev=a29622c53e4027901620dfe761b14b0310ce7edb"]
+git = "https://github.com/composefs/composefs-rs"
+replace-with = "vendored-sources"
+rev = "a29622c53e4027901620dfe761b14b0310ce7edb"
+
+[source.vendored-sources]
+directory = "vendor"

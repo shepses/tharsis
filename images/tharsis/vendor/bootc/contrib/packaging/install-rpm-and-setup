@@ -1,0 +1,46 @@
+#!/bin/bash
+# Install bootc RPM and perform post-installation setup
+set -xeuo pipefail
+
+RPM_DIR="${1:-/tmp}"
+INSTALL_ROOT="${2:-/}"
+
+# We'll create a new dnf repo to install our newer stuff
+dnf install -y createrepo_c
+
+mkdir /tmp/localrepo
+cp "${RPM_DIR}"/*.rpm /tmp/localrepo/
+
+createrepo_c /tmp/localrepo
+
+# Create a .repo file with higher priority so that our newer
+# stuff is installed inside the target-rootfs
+cat <<EOF > /etc/yum.repos.d/local.repo
+[local]
+name=Local CI repo
+baseurl=file:///tmp/localrepo
+enabled=1
+gpgcheck=0
+priority=1
+EOF
+
+mkdir -p "${INSTALL_ROOT}/usr/lib/bootc/install"
+
+# Only in this containerfile, inject a file which signifies
+# this comes from this development image. This can be used in
+# tests to know we're doing upstream CI.
+touch "${INSTALL_ROOT}/usr/lib/.bootc-dev-stamp"
+
+# Fedora 43+ ships a GRUB with the BLI module, so enable DPS
+# auto-discovery for root.  This must run after our RPM is installed
+# since older bootc doesn't recognize the discoverable-partitions key.
+. /usr/lib/os-release
+if [ "${ID}" = "fedora" ] && [ "${VERSION_ID}" -ge 43 ] 2>/dev/null; then
+  cat > "${INSTALL_ROOT}/usr/lib/bootc/install/20-discoverable-partitions.toml" <<'EOF'
+[install]
+discoverable-partitions = true
+EOF
+fi
+
+# Workaround for https://github.com/bootc-dev/bootc/issues/1546
+rm -rf /root/buildinfo /var/roothome/buildinfo
