@@ -1,0 +1,11 @@
+#%PAM-1.0
+
+# Allow unlocking without entering a password
+auth       sufficient   pam_permit.so
+
+# Fallback stack (if pam_permit is commented out in future)
+auth       requisite    pam_nologin.so
+auth       required     pam_succeed_if.so user != root quiet_success
+@include common-auth
+@include common-account
+@include common-session

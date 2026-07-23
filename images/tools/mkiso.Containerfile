@@ -1,0 +1,24 @@
+FROM debian:trixie
+
+RUN apt update && DEBIAN_FRONTEND=noninteractive apt install -y jq yq curl wget make build-essential fuse-overlayfs podman skopeo qemu-kvm 
+
+RUN	mkdir -p \
+	/app \
+	/etc/containers \
+	/usr/local/bin \
+	/var/lib/flatpak
+
+RUN wget -q https://github.com/sigstore/cosign/releases/download/v3.1.2/cosign_3.1.2_amd64.deb && \
+	dpkg -i cosign_3.1.2_amd64.deb
+
+RUN apt install -y \
+	debootstrap rsync isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
+	xorriso squashfs-tools-ng erofs-utils mtools dosfstools
+
+WORKDIR /app
+
+COPY --chmod=755 scripts/mkiso.sh /usr/local/bin/mkiso
+
+CMD ["/usr/local/bin/mkiso"]
+
+# VERSION: 1.0.0
