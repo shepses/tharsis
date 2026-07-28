@@ -111,9 +111,12 @@ RUN systemctl set-default graphical.target && systemctl enable sddm
 
 COPY <<EOF /etc/containers/storage.conf
 [storage]
-driver = "vfs"
+driver = "overlay"
 graphroot = "/var/lib/containers/storage"
 runroot = "/var/run/containers/storage"
+[storage.options.overlay]
+mount_program = "/usr/bin/fuse-overlayfs"
+mountopt = "nodev"
 EOF
 
 RUN sed -i 's|^HOME=.*|HOME=/var/home|' "/etc/default/useradd" && \

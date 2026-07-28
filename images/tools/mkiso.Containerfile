@@ -15,6 +15,8 @@ RUN apt install -y \
 	debootstrap rsync isolinux syslinux-efi grub-pc-bin grub-efi-amd64-bin grub-efi-ia32-bin \
 	xorriso squashfs-tools-ng erofs-utils mtools dosfstools
 
+RUN apt install -y strace
+
 WORKDIR /app
 
 COPY --chmod=755 scripts/mkiso.sh /usr/local/bin/mkiso

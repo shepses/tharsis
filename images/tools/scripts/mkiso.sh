@@ -169,10 +169,10 @@ rootfs_include_container() {
         return 0
     fi
     ci_group_start "rootfs-include-container"
-    skopeo copy \
+    strace -o $WORKDIR/strace.log skopeo copy \
         --src-daemon-host unix:///var/run/podman.sock \
         docker-daemon:"${include_image}" \
-        containers-storage:[vfs@$ROOTFS/var/lib/containers/storage+$ROOTFS/var/run/containers/storage]$include_image
+        containers-storage:[overlay@$ROOTFS/var/lib/containers/storage+$ROOTFS/var/run/containers/storage,mount_program=/usr/bin/fuse-overlayfs,mount_option=nodev]$include_image
     ci_group_end
 }
 
