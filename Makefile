@@ -5,7 +5,7 @@
 # -v "./iso:/app" \
 # --mount type=bind,src=./iso,target=/app \
 # --storage-opt overlay.mount_program=/usr/bin/fuse-overlayfs \
-# --userns=keep-id:uid=$(UID,gid=$(GID) \
+# --userns=keep-id:uid=$(shell uid -u),gid=$(shell uid -g) \
 # --cap-add CAP_CHOWN,CAP_DAC_OVERRIDE,CAP_FOWNER,CAP_FSETID,CAP_MKNOD,CAP_SETFCAP,CAP_SYS_ADMIN
 
 PHONY: key
@@ -33,7 +33,8 @@ images:
 CLEAN_WORKDIR="true"
 iso:
 	@podman run -it \
-		--privileged \
+		--cap-add CAP_CHOWN,CAP_DAC_OVERRIDE,CAP_FOWNER,CAP_FSETID,CAP_MKNOD,CAP_SETFCAP,CAP_SYS_ADMIN \
+		--userns=keep-id:uid=$(shell uid -u),gid=$(shell uid -g) \
 		--env CLEAN_WORKDIR=$(CLEAN_WORKDIR) \
 		--env HOOK_configure_livesys=/app/src/hooks/configure_livesys.sh \
 		--env CONTAINER_HOST=unix:///var/run/podman.sock \
